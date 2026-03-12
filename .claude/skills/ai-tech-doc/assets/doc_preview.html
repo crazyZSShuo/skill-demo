@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>技术文档预览</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: #e1e4e8;
+      --text: #24292f;
+      --text-muted: #57606a;
+      --accent: #0969da;
+      --code-bg: #f6f8fa;
+      --sidebar-w: 260px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                   "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* 侧边栏 */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      position: fixed;
+      top: 0; left: 0;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    #sidebar h2 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    #toc { list-style: none; }
+    #toc li { margin: 2px 0; }
+    #toc a {
+      display: block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: background 0.15s;
+    }
+    #toc a:hover { background: var(--bg); color: var(--accent); }
+    #toc .toc-h2 { padding-left: 8px; }
+    #toc .toc-h3 { padding-left: 22px; font-size: 12.5px; color: var(--text-muted); }
+    #toc .toc-active { background: #dbeafe; color: var(--accent); font-weight: 500; }
+
+    /* 主内容区 */
+    #main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 48px 64px;
+      max-width: calc(var(--sidebar-w) + 860px);
+    }
+
+    /* 工具栏 */
+    #toolbar {
+      position: fixed;
+      top: 16px; right: 24px;
+      display: flex;
+      gap: 8px;
+      z-index: 20;
+    }
+
+    #toolbar button, #toolbar label {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--text);
+      transition: border-color 0.15s;
+    }
+    #toolbar button:hover, #toolbar label:hover { border-color: var(--accent); color: var(--accent); }
+    #file-input { display: none; }
+
+    /* 文档样式 */
+    #content h1 { font-size: 2em; font-weight: 700; margin: 0 0 24px; padding-bottom: 12px; border-bottom: 2px solid var(--border); }
+    #content h2 { font-size: 1.4em; font-weight: 600; margin: 40px 0 16px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    #content h3 { font-size: 1.15em; font-weight: 600; margin: 28px 0 12px; }
+    #content h4 { font-size: 1em; font-weight: 600; margin: 20px 0 8px; color: var(--text-muted); }
+
+    #content p { margin: 0 0 16px; }
+    #content ul, #content ol { margin: 0 0 16px 24px; }
+    #content li { margin: 4px 0; }
+    #content li > p { margin: 0; }
+
+    #content a { color: var(--accent); text-decoration: none; }
+    #content a:hover { text-decoration: underline; }
+
+    #content blockquote {
+      margin: 16px 0;
+      padding: 12px 16px;
+      background: #f0f6ff;
+      border-left: 4px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      color: #1c4b82;
+    }
+
+    #content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    #content th {
+      background: var(--code-bg);
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+    }
+    #content td {
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      vertical-align: top;
+    }
+    #content tr:nth-child(even) td { background: #fafbfc; }
+
+    #content code {
+      font-family: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, monospace;
+      font-size: 0.875em;
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+
+    #content pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      overflow-x: auto;
+      margin: 16px 0;
+      position: relative;
+    }
+    #content pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+
+    /* 复制按钮 */
+    .copy-btn {
+      position: absolute;
+      top: 8px; right: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      color: var(--text-muted);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    #content pre:hover .copy-btn { opacity: 1; }
+    .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* 空状态 */
+    #placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      color: var(--text-muted);
+      text-align: center;
+      gap: 12px;
+    }
+    #placeholder svg { opacity: 0.3; }
+    #placeholder p { font-size: 14px; }
+
+    /* 验证结果面板 */
+    #validation-panel {
+      display: none;
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      width: 360px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+      font-size: 13px;
+      z-index: 30;
+    }
+    #validation-panel h3 { font-size: 13px; margin-bottom: 8px; }
+    .v-error { color: #cf222e; }
+    .v-warn { color: #9a6700; }
+    .v-ok { color: #1a7f37; }
+
+    @media (max-width: 900px) {
+      #sidebar { display: none; }
+      #main { margin-left: 0; padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <h2>目录</h2>
+  <ul id="toc"></ul>
+</nav>
+
+<div id="toolbar">
+  <label for="file-input">打开文档</label>
+  <input type="file" id="file-input" accept=".md,.markdown">
+  <button id="validate-btn" style="display:none">规范检查</button>
+  <button id="print-btn" onclick="window.print()">打印</button>
+</div>
+
+<main id="main">
+  <div id="placeholder">
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="16" y1="13" x2="8" y2="13"/>
+      <line x1="16" y1="17" x2="8" y2="17"/>
+      <polyline points="10 9 9 9 8 9"/>
+    </svg>
+    <p>点击「打开文档」加载 Markdown 文件<br>或将文件拖拽到此处</p>
+  </div>
+  <article id="content"></article>
+</main>
+
+<div id="validation-panel">
+  <h3>规范检查结果</h3>
+  <div id="validation-results"></div>
+  <button onclick="document.getElementById('validation-panel').style.display='none'"
+    style="margin-top:10px;font-size:12px;cursor:pointer;border:none;background:none;color:var(--text-muted)">关闭</button>
+</div>
+
+<script>
+  marked.setOptions({ breaks: true, gfm: true });
+
+  let currentMarkdown = "";
+
+  // 加载文件
+  document.getElementById("file-input").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => renderDoc(ev.target.result, file.name);
+    reader.readAsText(file, "utf-8");
+  });
+
+  // 拖拽支持
+  document.body.addEventListener("dragover", e => e.preventDefault());
+  document.body.addEventListener("drop", e => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => renderDoc(ev.target.result, file.name);
+    reader.readAsText(file, "utf-8");
+  });
+
+  function renderDoc(markdown, filename) {
+    currentMarkdown = markdown;
+    document.getElementById("placeholder").style.display = "none";
+    document.getElementById("validate-btn").style.display = "";
+    document.title = filename + " · 技术文档预览";
+
+    const content = document.getElementById("content");
+    content.innerHTML = marked.parse(markdown);
+
+    // 代码高亮
+    content.querySelectorAll("pre code").forEach(block => {
+      hljs.highlightElement(block);
+      // 添加复制按钮
+      const pre = block.parentElement;
+      const btn = document.createElement("button");
+      btn.className = "copy-btn";
+      btn.textContent = "复制";
+      btn.onclick = () => {
+        navigator.clipboard.writeText(block.textContent);
+        btn.textContent = "已复制";
+        setTimeout(() => btn.textContent = "复制", 1500);
+      };
+      pre.appendChild(btn);
+    });
+
+    buildTOC();
+    window.scrollTo(0, 0);
+  }
+
+  function buildTOC() {
+    const toc = document.getElementById("toc");
+    toc.innerHTML = "";
+    const headings = document.getElementById("content").querySelectorAll("h1, h2, h3");
+
+    headings.forEach((h, i) => {
+      if (!h.id) h.id = "heading-" + i;
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = "#" + h.id;
+      a.textContent = h.textContent;
+      a.className = "toc-" + h.tagName.toLowerCase();
+      a.onclick = e => {
+        e.preventDefault();
+        h.scrollIntoView({ behavior: "smooth" });
+      };
+      li.appendChild(a);
+      toc.appendChild(li);
+    });
+
+    // 高亮当前章节
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          toc.querySelectorAll("a").forEach(a => a.classList.remove("toc-active"));
+          const active = toc.querySelector(`a[href="#${entry.target.id}"]`);
+          if (active) active.classList.add("toc-active");
+        }
+      });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+
+    headings.forEach(h => observer.observe(h));
+  }
+
+  // 简易规范检查（前端版本）
+  document.getElementById("validate-btn").addEventListener("click", () => {
+    const results = [];
+    const md = currentMarkdown;
+
+    const bareBlocks = (md.match(/^```\s*$/gm) || []).length;
+    if (bareBlocks > 0)
+      results.push({ type: "error", msg: `${bareBlocks} 个代码块未标注语言` });
+
+    const banned = ["简单地", "只需", "请注意", "众所周知", "笔者认为"];
+    banned.forEach(w => {
+      if (md.includes(w))
+        results.push({ type: "warn", msg: `禁用表述：「${w}」` });
+    });
+
+    const hasH1 = /^# [^#]/m.test(md);
+    if (!hasH1) results.push({ type: "error", msg: "缺少一级标题" });
+
+    const hasTroubleshoot = /故障排查|常见问题|Troubleshooting/i.test(md);
+    if (!hasTroubleshoot) results.push({ type: "warn", msg: "建议添加「故障排查」章节" });
+
+    const hasEnvReq = /环境要求|系统要求|前置条件/i.test(md);
+    if (!hasEnvReq) results.push({ type: "warn", msg: "建议添加「环境要求」章节" });
+
+    if (results.length === 0)
+      results.push({ type: "ok", msg: "通过所有检查项" });
+
+    const panel = document.getElementById("validation-panel");
+    const div = document.getElementById("validation-results");
+    div.innerHTML = results.map(r =>
+      `<div class="v-${r.type}" style="margin:4px 0">${
+        r.type === "error" ? "✗" : r.type === "warn" ? "⚠" : "✓"
+      } ${r.msg}</div>`
+    ).join("");
+    panel.style.display = "block";
+  });
+</script>
+</body>
+</html>
